@@ -1,0 +1,1181 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Domácnost – plánovač</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏡</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{
+  --bg:#eef1ec; --surface:#fbfcfa; --surface-2:#e3e8e0; --ink:#1d2420; --muted:#5f6b63; --line:#d3dacf;
+  --martin:#2f5bd3; --martin-bg:#dfe6fa; --betka:#a23b8f; --betka-bg:#f4dcef; --both:#4f7d2a; --both-bg:#e1edd5;
+  --busy:#d9ded6; --busy-ink:#59625b; --free:rgba(79,125,42,.16); --overdue:#c0262d; --overdue-bg:#fbe3e2;
+  --focus:#2f5bd3; --hour:48px;
+  --f-head:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#151a17; --surface:#1d2420; --surface-2:#262e29; --ink:#e7ece6; --muted:#9aa69d; --line:#323b35;
+    --martin:#7f9df0; --martin-bg:#23305a; --betka:#e08acd; --betka-bg:#4a2443; --both:#9ccb6f; --both-bg:#2d4020;
+    --busy:#2c342f; --busy-ink:#a3ada5; --free:rgba(156,203,111,.14); --overdue:#ff7b7b; --overdue-bg:#4a2223;
+    --focus:#7f9df0; color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+[hidden]{display:none!important}
+h1,h2,h3{font-family:var(--f-head);font-weight:700;letter-spacing:-.01em;margin:0}
+
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;cursor:pointer;line-height:1.2}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.primary:hover{opacity:.88}
+.btn.danger{color:var(--overdue)}
+.btn.icon{padding:6px 10px;font-size:16px}
+.btn:disabled{opacity:.5;cursor:default}
+
+/* Sign-in & setup */
+.screen{min-height:100%;display:grid;place-items:center;padding:24px}
+.card{max-width:440px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:32px}
+.card h1{font-size:34px;line-height:1.1;margin-bottom:8px}
+.card p{color:var(--muted);margin:0 0 20px}
+.card .fine{font-size:13px;margin:16px 0 0}
+.card label{display:block;margin:0 0 14px;font-weight:700}
+.card select,.card input[type=text]{display:block;width:100%;margin-top:6px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.row-inline{display:flex;gap:8px}
+.row-inline input{flex:1}
+.owner-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.d-martin{background:var(--martin)} .d-betka{background:var(--betka)} .d-both{background:var(--both)}
+
+/* App shell */
+#app{display:flex;flex-direction:column;height:100%}
+.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface);flex-wrap:wrap}
+.brand{font-family:var(--f-head);font-weight:700;font-size:20px;margin-right:8px}
+.nav{display:flex;align-items:center;gap:6px}
+#range-label{font-size:17px;font-weight:500;margin-left:6px;min-width:12ch}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.spacer{flex:1}
+#sync-state{font-size:13px;color:var(--muted)}
+#sync-state.err{color:var(--overdue)}
+
+.layout{flex:1;display:grid;grid-template-columns:320px 1fr;min-height:0}
+.side{border-right:1px solid var(--line);overflow:auto;padding:16px;background:var(--bg)}
+.side h3{font-size:16px;margin:0 0 10px;display:flex;align-items:baseline;gap:8px}
+.side h3 small{font-family:var(--f-body);font-weight:400;color:var(--muted);font-size:13px}
+.side section+section,.side details{margin-top:22px}
+.hint{font-size:13px;color:var(--muted);margin:0 0 10px}
+.empty{font-size:14px;color:var(--muted);padding:10px 0}
+
+/* Chore tags: the one bold element */
+.tags{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.tag{position:relative;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--muted);border-radius:4px 10px 10px 4px;padding:8px 8px 8px 12px;cursor:grab;user-select:none}
+.tag:hover{border-color:var(--ink);border-left-color:inherit}
+.tag.o-martin{border-left-color:var(--martin)} .tag.o-betka{border-left-color:var(--betka)} .tag.o-both{border-left-color:var(--both)}
+.tag.overdue{background:var(--overdue-bg);border-color:var(--overdue)}
+.tag.overdue .t-meta{color:var(--overdue)}
+.tag.dragging{opacity:.4}
+.t-body{flex:1;min-width:0}
+.t-name{display:block;font-weight:700;line-height:1.25}
+.t-meta{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.t-actions{display:flex;gap:2px;opacity:.55}
+.tag:hover .t-actions,.tag:focus-within .t-actions{opacity:1}
+.t-actions button{border:0;background:transparent;border-radius:6px;padding:4px 6px;cursor:pointer;font-size:14px}
+.t-actions button:hover{background:var(--surface-2)}
+details summary{cursor:pointer;font-family:var(--f-head);font-weight:700;font-size:16px}
+details .tags{margin-top:10px}
+
+.today-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.today-list li{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.today-list .tl-time{font-size:13px;color:var(--muted);width:4.5em;flex:none}
+.today-list .tl-name{flex:1}
+.today-list li.done .tl-name{text-decoration:line-through;color:var(--muted)}
+
+/* Calendar */
+.cal{overflow:hidden;display:flex;flex-direction:column;min-height:0;background:var(--surface)}
+.legend{display:flex;gap:16px;padding:8px 16px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.legend .free-key{display:inline-block;width:14px;height:10px;background:var(--free);border:1px dashed var(--both);margin-right:6px;vertical-align:0}
+.wk{display:flex;flex-direction:column;min-height:0;flex:1}
+.wk-head,.wk-allday{display:grid;grid-template-columns:52px repeat(7,1fr);border-bottom:1px solid var(--line)}
+.dh{padding:6px 8px;display:flex;gap:6px;align-items:baseline;border-left:1px solid var(--line)}
+.dh span{color:var(--muted);font-size:13px}
+.dh b{font-family:var(--f-head);font-size:18px}
+.dh.is-today b{background:var(--ink);color:var(--bg);border-radius:6px;padding:0 6px}
+.wk-allday .ad{border-left:1px solid var(--line);padding:3px;min-height:24px;display:flex;flex-direction:column;gap:2px}
+.wk-allday small{font-size:11px;color:var(--muted);padding:4px}
+.ev-ad{font-size:12px;background:var(--busy);color:var(--busy-ink);border-radius:4px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk-scroll{overflow:auto;flex:1;min-height:0}
+.wk-body{display:grid;grid-template-columns:52px repeat(7,1fr)}
+.times{position:relative}
+.times div{height:var(--hour);font-size:11.5px;color:var(--muted);text-align:right;padding-right:6px;transform:translateY(-7px)}
+.col{position:relative;border-left:1px solid var(--line);
+  background-image:linear-gradient(to bottom,var(--line) 1px,transparent 1px),linear-gradient(to bottom,transparent calc(var(--hour)/2),color-mix(in srgb,var(--line) 50%,transparent) calc(var(--hour)/2),transparent calc(var(--hour)/2 + 1px));
+  background-size:100% var(--hour)}
+.col.is-today{background-color:color-mix(in srgb,var(--surface-2) 45%,transparent)}
+.col .past{position:absolute;left:0;right:0;top:0;background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--line) 40%,transparent) 6px 7px);pointer-events:none}
+.now-line{position:absolute;left:0;right:0;height:2px;background:var(--overdue);z-index:4;pointer-events:none}
+.free{position:absolute;left:1px;right:1px;background:var(--free);border-top:1px dashed var(--both);border-bottom:1px dashed var(--both);pointer-events:none;z-index:0}
+.ev{position:absolute;border-radius:6px;padding:3px 6px;font-size:12px;line-height:1.25;overflow:hidden;z-index:1}
+.ev.busy{background:var(--busy);color:var(--busy-ink);border-left:3px solid transparent}
+.ev.busy.c-martin{border-left-color:color-mix(in srgb,var(--martin) 45%,transparent)}
+.ev.busy.c-betka{border-left-color:color-mix(in srgb,var(--betka) 45%,transparent)}
+.ev.busy.c-both{border-left-color:color-mix(in srgb,var(--both) 45%,transparent)}
+.ev.chore{cursor:pointer;z-index:2;border:1px solid transparent}
+.ev.chore[draggable=true]{cursor:grab}
+.ev.chore b{display:block;font-weight:700}
+.ev.chore span{opacity:.8}
+.ev.o-martin{background:var(--martin-bg);border-color:var(--martin);color:var(--ink)}
+.ev.o-betka{background:var(--betka-bg);border-color:var(--betka);color:var(--ink)}
+.ev.o-both{background:var(--both-bg);border-color:var(--both);color:var(--ink)}
+.ev.is-done{opacity:.55}
+.ev.is-done b::before{content:"✓ "}
+.ghost{position:absolute;left:2px;right:2px;height:2px;background:var(--ink);z-index:5;pointer-events:none}
+.ghost span{position:absolute;left:0;top:-20px;background:var(--ink);color:var(--bg);font-size:12px;padding:1px 6px;border-radius:4px}
+
+.mo{display:flex;flex-direction:column;flex:1;min-height:0}
+.mo-head{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--line)}
+.mo-head div{padding:6px 8px;color:var(--muted);font-size:13px;border-left:1px solid var(--line)}
+.mo-grid{flex:1;display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(96px,1fr);overflow:auto}
+.mcell{border-left:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.mcell.other{background:color-mix(in srgb,var(--surface-2) 40%,transparent)}
+.mcell.other .mnum{color:var(--muted)}
+.mcell.drop{outline:2px solid var(--ink);outline-offset:-2px}
+.mnum{border:0;background:transparent;font-family:var(--f-head);font-weight:700;text-align:left;padding:0 2px;cursor:pointer;align-self:flex-start}
+.mcell.is-today .mnum{background:var(--ink);color:var(--bg);border-radius:5px;padding:0 6px}
+.mchip{font-size:12px;border-radius:4px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mchip.busy{background:var(--busy);color:var(--busy-ink)}
+.mchip.chore{cursor:pointer;border:1px solid transparent}
+.mchip.o-martin{background:var(--martin-bg);border-color:var(--martin)}
+.mchip.o-betka{background:var(--betka-bg);border-color:var(--betka)}
+.mchip.o-both{background:var(--both-bg);border-color:var(--both)}
+.mchip.is-done{opacity:.55}
+.more{font-size:12px;color:var(--muted);padding-left:4px}
+
+/* Dialogs */
+dialog{border:1px solid var(--line);border-radius:14px;padding:24px;background:var(--surface);color:var(--ink);width:min(440px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(20,26,22,.45)}
+dialog h3{font-size:22px;line-height:1.2}
+dialog .sub{color:var(--muted);margin:4px 0 18px;font-size:14px}
+.field{margin:0 0 16px;border:0;padding:0}
+.field legend,.field>span{display:block;font-weight:700;margin-bottom:6px;padding:0}
+.pick{display:flex;flex-wrap:wrap;gap:6px}
+.pick label{position:relative}
+.pick input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.pick span{display:inline-block;border:1px solid var(--line);border-radius:8px;padding:6px 12px;background:var(--bg)}
+.pick input:checked+span{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.pick input:focus-visible+span{outline:2px solid var(--focus);outline-offset:2px}
+.pick.owners input:checked+span.p-martin{background:var(--martin);border-color:var(--martin);color:#fff}
+.pick.owners input:checked+span.p-betka{background:var(--betka);border-color:var(--betka);color:#fff}
+.pick.owners input:checked+span.p-both{background:var(--both);border-color:var(--both);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two label{font-weight:700}
+.two input,.custom input{display:block;width:100%;margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.custom{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:14px;color:var(--muted)}
+.custom input{width:80px;margin:0}
+.warn{font-size:13px;color:var(--overdue);margin:0 0 12px;min-height:0}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.settings a{color:var(--martin)}
+.settings hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+
+/* Toasts & reauth */
+#toasts{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:50;align-items:center}
+.toast{background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:14px;display:flex;gap:12px;align-items:center;max-width:calc(100vw - 32px)}
+.toast.err{background:var(--overdue);color:#fff}
+.toast button{border:0;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;padding:0}
+#reauth{position:fixed;top:0;left:0;right:0;z-index:40;background:var(--overdue-bg);color:var(--ink);border-bottom:1px solid var(--overdue);padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap}
+.loading{display:grid;place-items:center;height:100%;color:var(--muted)}
+
+/* Phone: list only */
+@media (max-width: 820px){
+  .layout{grid-template-columns:1fr}
+  .cal,.nav,#view-toggle{display:none}
+  .side{border-right:0}
+  .t-actions{opacity:1}
+  .tag{cursor:pointer}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="screen-signin" class="screen">
+  <div class="card">
+    <h1>Domácnost</h1>
+    <p>Plánování domácích prací nad vašimi třemi sdílenými kalendáři.</p>
+    <button id="signin-btn" class="btn primary" disabled>Přihlásit se přes Google</button>
+    <p class="fine">Při prvním přihlášení Google upozorní, že aplikace není ověřená. Klikni na „Pokračovat“ a povol obě oprávnění: Kalendář a soubory na Disku.</p>
+  </div>
+</div>
+
+<div id="screen-setup" class="screen" hidden><div class="card" id="setup-card"></div></div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <span class="brand">Domácnost</span>
+    <div class="nav">
+      <button class="btn icon" id="prev" aria-label="Předchozí">‹</button>
+      <button class="btn" id="go-today">Dnes</button>
+      <button class="btn icon" id="next" aria-label="Další">›</button>
+      <h2 id="range-label"></h2>
+    </div>
+    <div class="seg" id="view-toggle" role="group" aria-label="Zobrazení">
+      <button data-view="week" aria-pressed="true">Týden</button>
+      <button data-view="month" aria-pressed="false">Měsíc</button>
+    </div>
+    <span class="spacer"></span>
+    <span id="sync-state" aria-live="polite"></span>
+    <button class="btn icon" id="refresh" title="Načíst změny z kalendáře" aria-label="Načíst změny z kalendáře">↻</button>
+    <button class="btn icon" id="settings-btn" title="Nastavení" aria-label="Nastavení">⚙</button>
+  </header>
+  <main class="layout">
+    <aside class="side">
+      <section id="today-panel"></section>
+      <section>
+        <h3>K naplánování <small id="due-count"></small></h3>
+        <p class="hint" id="due-hint">Přetáhni práci do kalendáře, nebo na ni klikni.</p>
+        <ul class="tags" id="due-list"></ul>
+      </section>
+      <details id="later">
+        <summary>Později</summary>
+        <ul class="tags" id="later-list"></ul>
+      </details>
+    </aside>
+    <section class="cal" id="cal" aria-label="Kalendář"></section>
+  </main>
+</div>
+
+<dialog id="plan-dlg">
+  <h3 id="pd-title"></h3>
+  <p class="sub" id="pd-sub"></p>
+  <fieldset class="field">
+    <legend>Kdo</legend>
+    <div class="pick owners" id="pd-owners">
+      <label><input type="radio" name="owner" value="martin"><span class="p-martin">Martin</span></label>
+      <label><input type="radio" name="owner" value="betka"><span class="p-betka">Bětka</span></label>
+      <label><input type="radio" name="owner" value="both"><span class="p-both">Společně</span></label>
+    </div>
+  </fieldset>
+  <div class="two field">
+    <label>Den<input type="date" id="pd-date"></label>
+    <label>Začátek<input type="time" id="pd-time" step="900"></label>
+  </div>
+  <fieldset class="field">
+    <legend>Jak dlouho</legend>
+    <div class="pick" id="pd-durs"></div>
+    <label class="custom">nebo <input type="number" id="pd-dur" min="5" max="600" step="5"> minut</label>
+  </fieldset>
+  <p class="warn" id="pd-warn"></p>
+  <div class="actions">
+    <button class="btn danger" id="pd-remove" type="button">Odebrat z kalendáře</button>
+    <button class="btn" id="pd-done" type="button">Hotovo</button>
+    <span class="spacer"></span>
+    <button class="btn" id="pd-cancel" type="button">Zrušit</button>
+    <button class="btn primary" id="pd-save" type="button">Uložit</button>
+  </div>
+</dialog>
+
+<dialog id="settings-dlg" class="settings">
+  <h3>Nastavení</h3>
+  <p class="sub">Který kalendář patří komu. Do těchto kalendářů aplikace zapisuje.</p>
+  <div id="set-cals"></div>
+  <hr>
+  <p>Seznam prací, frekvence a historii najdeš v <a id="set-sheet" target="_blank" rel="noopener">datové tabulce</a>. Po ruční úpravě klikni na ↻.</p>
+  <hr>
+  <div class="actions">
+    <button class="btn" id="set-signout" type="button">Odhlásit</button>
+    <span class="spacer"></span>
+    <button class="btn" id="set-close" type="button">Zavřít</button>
+    <button class="btn primary" id="set-save" type="button">Uložit</button>
+  </div>
+</dialog>
+
+<div id="reauth" hidden>
+  <span>Přihlášení vypršelo. Google ho drží zhruba hodinu.</span>
+  <button class="btn primary" id="reauth-btn">Přihlásit znovu</button>
+</div>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ---------- Config ---------- */
+const CLIENT_ID = '181661616063-ccorepmv131hpoa7t99o27f80fr9gqk7.apps.googleusercontent.com';
+const SCOPES = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/drive.file'];
+const DAY_START = 6, DAY_END = 23, HOUR_PX = 48, SNAP = 15;
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const CAL = 'https://www.googleapis.com/calendar/v3';
+const SH = 'https://sheets.googleapis.com/v4/spreadsheets';
+const OWNERS = { martin: 'Martin', betka: 'Bětka', both: 'Společně' };
+const FREQ = { weekly: 'týdně', biweekly: 'jednou za 14 dní', monthly: 'měsíčně' };
+const DURS = [15, 30, 45, 60, 90, 120];
+const WD = ['po', 'út', 'st', 'čt', 'pá', 'so', 'ne'];
+const TABS = {
+  chores: ['id', 'name', 'freq', 'lastOwner', 'lastDuration', 'lastDone', 'skipFrom', 'active'],
+  // sessionId is reserved for stacked sessions (several chores in one event), switched on later
+  assignments: ['id', 'choreId', 'owner', 'start', 'duration', 'calendarId', 'eventId', 'status', 'sessionId', 'created'],
+  log: ['date', 'choreId', 'choreName', 'owner', 'assignmentId'],
+  config: ['key', 'value']
+};
+const SEED = {
+  weekly: ['vyluxovat gauč', 'vysát za postelí', 'vyčistit lilce záchod', 'vynést tříděný odpad', 'umýt koupelnu',
+    'umýt záchod a VŽDY otřít podlahu kolem něj', 'zalít kytky', 'vymyslet, co budeme vařit', 'objednat nákup',
+    'vyprat ručníky a koupelnovou předložku', 'vytřídit si sluhu a věci hodit do prádla nebo pověsit do skříně',
+    'vyprat tmavé', 'vyprat barevné', 'vibe check', 'Martinův stůl oluxovat/oprášit a otřít',
+    'komoda v obýváku - otřít od chlupů a vyleštit', 'složit prádlo', 'utřít jídelní a konferenční stůl'],
+  biweekly: ['otřít zrcadla', 'převlíct postel', 'otřít kuchyňskou linku (dvířka)', 'vyměnit lilce záchod',
+    'vyprat deky od gauče', 'vyprat bílé', 'umýt sporák'],
+  monthly: ['Antiparazitikum roza', 'břetislavova velká fuška', 'objednat granule lilce', 'objednat granule roze',
+    'randíčko', 'objednat kočkolit', 'vyprat polštáře od gauče', 'Róza odčervit', 'Lilka odčervit']
+};
+
+/* ---------- State ---------- */
+const S = {
+  token: null, tokenExp: 0, booted: false,
+  sheetId: store('get', 'hp_sheet'),
+  chores: [], assignments: [], log: [], config: {},
+  calendars: [], events: [],
+  view: 'week', anchor: null, drag: null
+};
+
+/* ---------- Helpers ---------- */
+function store(op, k, v) {
+  try {
+    if (op === 'get') return localStorage.getItem(k);
+    if (op === 'set') localStorage.setItem(k, v);
+    if (op === 'del') localStorage.removeItem(k);
+  } catch (e) { /* storage unavailable */ }
+  return null;
+}
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const enc = encodeURIComponent;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function parseYmd(s) {
+  if (s === '' || s == null) return null;
+  if (typeof s === 'number') { const b = new Date(1899, 11, 30); b.setDate(b.getDate() + Math.floor(s)); return b; }
+  const [y, m, d] = String(s).slice(0, 10).split('-').map(Number);
+  return y ? new Date(y, m - 1, d) : null;
+}
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const startOfDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+const mondayOf = d => { const x = startOfDay(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+const sameDay = (a, b) => ymd(a) === ymd(b);
+const fmtTime = d => `${d.getHours()}:${pad(d.getMinutes())}`;
+const fmtDay = d => `${d.getDate()}. ${d.getMonth() + 1}.`;
+const fmtDayLong = d => `${WD[(d.getDay() + 6) % 7]} ${fmtDay(d)}`;
+const choreById = id => S.chores.find(c => c.id === id);
+const calKey = calId => ['martin', 'betka', 'both'].find(k => S.config['cal_' + k] === calId) || null;
+const calIds = () => [...new Set(['martin', 'betka', 'both'].map(k => S.config['cal_' + k]).filter(Boolean))];
+const plannedFor = choreId => S.assignments.find(a => a.choreId === choreId && a.status === 'planned');
+const assignEnd = a => new Date(a.start).getTime() + a.duration * 60000;
+
+function toast(msg, type = '', action) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<span>${esc(msg)}</span>`;
+  if (action) {
+    const b = document.createElement('button');
+    b.textContent = action.label;
+    b.onclick = () => { action.fn(); el.remove(); };
+    el.appendChild(b);
+  }
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), action ? 7000 : 4000);
+}
+function syncState(text, err) { const s = $('#sync-state'); s.textContent = text; s.classList.toggle('err', !!err); }
+
+/* ---------- Auth ---------- */
+let tokenClient = null, expiryTimer = null;
+class AuthError extends Error {}
+
+function initAuth() {
+  const t = setInterval(() => {
+    if (!window.google?.accounts?.oauth2) return;
+    clearInterval(t);
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES.join(' '),
+      callback: onToken,
+      error_callback: e => { if (e?.type !== 'popup_closed') toast('Přihlášení se nepovedlo. Zkus to znovu.', 'err'); }
+    });
+    $('#signin-btn').disabled = false;
+  }, 100);
+}
+function signIn() { if (tokenClient) tokenClient.requestAccessToken({ prompt: '' }); }
+
+function onToken(resp) {
+  if (resp.error) { toast('Přihlášení se nepovedlo. Zkus to znovu.', 'err'); return; }
+  if (!google.accounts.oauth2.hasGrantedAllScopes(resp, ...SCOPES)) {
+    toast('Chybí oprávnění. Při přihlášení zaškrtni Kalendář i soubory na Disku.', 'err');
+    return;
+  }
+  setToken(resp.access_token, Date.now() + (Number(resp.expires_in) - 60) * 1000);
+  $('#reauth').hidden = true;
+  if (S.booted) refreshAll(); else boot();
+}
+function setToken(t, exp) {
+  S.token = t; S.tokenExp = exp;
+  try { sessionStorage.setItem('hp_token', JSON.stringify({ t, exp })); } catch (e) {}
+  clearTimeout(expiryTimer);
+  expiryTimer = setTimeout(() => { S.token = null; if (S.booted) $('#reauth').hidden = false; }, Math.max(0, exp - Date.now()));
+}
+function restoreToken() {
+  try {
+    const v = JSON.parse(sessionStorage.getItem('hp_token') || 'null');
+    if (v && v.exp > Date.now() + 30000) { setToken(v.t, v.exp); return true; }
+  } catch (e) {}
+  return false;
+}
+function signOut() {
+  if (S.token && window.google?.accounts?.oauth2) google.accounts.oauth2.revoke(S.token, () => {});
+  try { sessionStorage.removeItem('hp_token'); } catch (e) {}
+  location.reload();
+}
+
+/* ---------- API ---------- */
+async function api(url, opts = {}) {
+  if (!S.token || Date.now() > S.tokenExp) { $('#reauth').hidden = !S.booted; throw new AuthError('auth'); }
+  const res = await fetch(url, { ...opts, headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+  if (res.status === 401) { S.token = null; if (S.booted) $('#reauth').hidden = false; throw new AuthError('auth'); }
+  if (res.status === 204) return null;
+  const data = await res.json().catch(() => null);
+  if (!res.ok) { const err = new Error(data?.error?.message || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  return data;
+}
+function handleErr(e, what) {
+  if (e instanceof AuthError) { if (!S.booted) showSignin(); return; }
+  console.error(e);
+  toast(`${what}: ${e.message}`, 'err');
+  syncState('Chyba', true);
+}
+
+/* ---------- Sheet storage ---------- */
+async function createSheet() {
+  const body = { properties: { title: 'Domácnost – data plánovače' }, sheets: Object.keys(TABS).map(title => ({ properties: { title } })) };
+  const r = await api(SH, { method: 'POST', body: JSON.stringify(body) });
+  return r.spreadsheetId;
+}
+function seedChores() {
+  let n = 0;
+  return Object.entries(SEED).flatMap(([freq, names]) => names.map(name => ({
+    id: 'c' + pad(++n), name, freq, lastOwner: '', lastDuration: '', lastDone: '', skipFrom: '', active: true
+  })));
+}
+async function loadSheet() {
+  const tabs = Object.keys(TABS);
+  const q = tabs.map(t => 'ranges=' + enc(`${t}!A1:Z`)).join('&');
+  const r = await api(`${SH}/${S.sheetId}/values:batchGet?${q}&valueRenderOption=UNFORMATTED_VALUE`);
+  const rows = {};
+  r.valueRanges.forEach((vr, i) => {
+    const vals = vr.values || [];
+    const head = vals[0] || TABS[tabs[i]];
+    rows[tabs[i]] = vals.slice(1).filter(row => row.some(c => c !== '')).map(row => Object.fromEntries(head.map((k, j) => [k, row[j] ?? ''])));
+  });
+  S.chores = rows.chores.map(c => ({ ...c, id: String(c.id), name: String(c.name), lastDuration: Number(c.lastDuration) || '',
+    active: !(c.active === false || String(c.active).toLowerCase() === 'false' || c.active === 0 || String(c.active).toLowerCase() === 'ne') }));
+  S.assignments = rows.assignments.map(a => ({ ...a, id: String(a.id), choreId: String(a.choreId), duration: Number(a.duration) || 30 }));
+  S.log = rows.log;
+  S.config = Object.fromEntries(rows.config.map(r => [r.key, String(r.value)]));
+}
+const tabRows = t => t === 'config' ? Object.entries(S.config).map(([key, value]) => ({ key, value })) : S[t];
+
+let saveChain = Promise.resolve();
+function save() {
+  syncState('Ukládám…');
+  saveChain = saveChain.then(doSave).then(() => syncState('Uloženo')).catch(e => handleErr(e, 'Uložení do tabulky selhalo'));
+  return saveChain;
+}
+async function doSave() {
+  const tabs = Object.keys(TABS);
+  const data = tabs.map(t => ({ range: `${t}!A1`, values: [TABS[t], ...tabRows(t).map(o => TABS[t].map(k => o[k] ?? ''))] }));
+  await api(`${SH}/${S.sheetId}/values:batchUpdate`, { method: 'POST', body: JSON.stringify({ valueInputOption: 'RAW', data }) });
+  const ranges = tabs.map(t => `${t}!A${tabRows(t).length + 2}:Z`);
+  await api(`${SH}/${S.sheetId}/values:batchClear`, { method: 'POST', body: JSON.stringify({ ranges }) });
+}
+
+/* ---------- Calendar ---------- */
+async function loadCalendarList() {
+  const r = await api(`${CAL}/users/me/calendarList?minAccessRole=writer&maxResults=250`);
+  S.calendars = (r.items || []).sort((a, b) => (a.summaryOverride || a.summary).localeCompare(b.summaryOverride || b.summary, 'cs'));
+}
+function normEvent(ev, calId) {
+  const allDay = !!ev.start?.date;
+  const start = allDay ? parseYmd(ev.start.date).getTime() : new Date(ev.start.dateTime).getTime();
+  const end = allDay ? parseYmd(ev.end.date).getTime() : new Date(ev.end.dateTime).getTime();
+  return { id: ev.id, calId, title: ev.summary || 'Obsazeno', allDay, start, end,
+    transparent: ev.transparency === 'transparent', assignId: ev.extendedProperties?.private?.hpAssignment || null };
+}
+async function listEvents(calId, params) {
+  let items = [], pageToken;
+  do {
+    const q = new URLSearchParams({ singleEvents: 'true', maxResults: '2500', ...params });
+    if (pageToken) q.set('pageToken', pageToken);
+    const r = await api(`${CAL}/calendars/${enc(calId)}/events?${q}`);
+    items = items.concat((r.items || []).filter(e => e.status !== 'cancelled'));
+    pageToken = r.nextPageToken;
+  } while (pageToken);
+  return items;
+}
+async function loadView() {
+  const { start, end } = viewRange();
+  const all = await Promise.all(calIds().map(async id =>
+    (await listEvents(id, { timeMin: start.toISOString(), timeMax: end.toISOString(), orderBy: 'startTime' })).map(e => normEvent(e, id))));
+  S.events = all.flat();
+}
+function eventBody(ch, a) {
+  const s = new Date(a.start), e = new Date(assignEnd(a));
+  return {
+    summary: `🧹 ${ch.name}`,
+    description: 'Naplánováno v aplikaci Domácnost.',
+    start: { dateTime: s.toISOString(), timeZone: TZ },
+    end: { dateTime: e.toISOString(), timeZone: TZ },
+    extendedProperties: { private: { hpApp: '1', hpAssignment: a.id, hpChores: ch.id } }
+  };
+}
+function upsertLocalEvent(ev, calId) {
+  S.events = S.events.filter(e => e.id !== ev.id);
+  S.events.push(normEvent(ev, calId));
+}
+
+/* Two-way sync: read app-tagged events and update our records */
+async function syncFromCalendar() {
+  const found = new Map();
+  await Promise.all(calIds().map(async id => {
+    for (const ev of await listEvents(id, { privateExtendedProperty: 'hpApp=1' })) {
+      const aid = ev.extendedProperties?.private?.hpAssignment;
+      if (aid) found.set(aid, { ev, calId: id });
+    }
+  }));
+  let changed = 0;
+  for (const a of S.assignments) {
+    if (a.status !== 'planned') continue;
+    const f = found.get(a.id);
+    if (!f) { a.status = 'deleted'; changed++; continue; }
+    const st = f.ev.start?.dateTime, en = f.ev.end?.dateTime;
+    if (!st || !en) continue;
+    const s = new Date(st), dur = Math.round((new Date(en) - s) / 60000);
+    if (+s !== +new Date(a.start) || dur !== a.duration || f.calId !== a.calendarId) {
+      Object.assign(a, { start: s.toISOString(), duration: dur, calendarId: f.calId, owner: calKey(f.calId) || a.owner, eventId: f.ev.id });
+      changed++;
+    }
+  }
+  changed += autoDone();
+  if (changed) await save();
+}
+/* Planned = done once its time has passed */
+function autoDone() {
+  let n = 0;
+  for (const a of S.assignments) {
+    if (a.status !== 'planned' || assignEnd(a) > Date.now()) continue;
+    completeAssignment(a, new Date(a.start));
+    n++;
+  }
+  return n;
+}
+function completeAssignment(a, when) {
+  a.status = 'done';
+  const ch = choreById(a.choreId);
+  if (ch && (!parseYmd(ch.lastDone) || parseYmd(ch.lastDone) < startOfDay(when))) ch.lastDone = ymd(when);
+  S.log.push({ date: ymd(when), choreId: a.choreId, choreName: ch?.name || '', owner: a.owner, assignmentId: a.id });
+}
+
+/* ---------- Due logic ---------- */
+function choreDue(ch) {
+  const base = [parseYmd(ch.lastDone), parseYmd(ch.skipFrom)].filter(Boolean).sort((a, b) => b - a)[0];
+  if (!base) return { date: mondayOf(new Date()), fresh: true };
+  let d;
+  if (ch.freq === 'biweekly') d = addDays(mondayOf(base), 14);
+  else if (ch.freq === 'monthly') d = mondayOf(new Date(base.getFullYear(), base.getMonth() + 1, Math.min(base.getDate(), 28)));
+  else d = addDays(mondayOf(base), 7);
+  return { date: d, fresh: false };
+}
+function dueBuckets() {
+  const today = startOfDay(new Date());
+  const horizon = viewRange().end;
+  const due = [], later = [];
+  for (const ch of S.chores) {
+    if (!ch.active || plannedFor(ch.id)) continue;
+    const { date, fresh } = choreDue(ch);
+    const item = { ch, date, fresh, overdue: !fresh && date <= today };
+    (date < horizon ? due : later).push(item);
+  }
+  const fo = { weekly: 0, biweekly: 1, monthly: 2 };
+  due.sort((a, b) => (b.overdue - a.overdue) || (a.date - b.date) || ((fo[a.ch.freq] ?? 3) - (fo[b.ch.freq] ?? 3)) || a.ch.name.localeCompare(b.ch.name, 'cs'));
+  later.sort((a, b) => a.date - b.date);
+  return { due, later };
+}
+
+/* ---------- View range ---------- */
+function defaultAnchor() {
+  const t = new Date(), wd = (t.getDay() + 6) % 7;
+  return wd >= 5 ? addDays(mondayOf(t), 7) : mondayOf(t); // weekend → plan next week
+}
+function viewRange() {
+  if (S.view === 'month') {
+    const month = new Date(S.anchor.getFullYear(), S.anchor.getMonth(), 1);
+    const start = mondayOf(month);
+    return { start, end: addDays(start, 42), month };
+  }
+  return { start: S.anchor, end: addDays(S.anchor, 7) };
+}
+
+/* ---------- Rendering ---------- */
+function render() { renderRangeLabel(); renderSide(); renderCal(); }
+
+function renderRangeLabel() {
+  const { start, end, month } = viewRange();
+  $('#range-label').textContent = month
+    ? month.toLocaleDateString('cs-CZ', { month: 'long', year: 'numeric' })
+    : `${fmtDay(start)} – ${fmtDay(addDays(end, -1))} ${addDays(end, -1).getFullYear()}`;
+  document.querySelectorAll('#view-toggle button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === S.view)));
+}
+
+function tagHtml(item) {
+  const { ch, date, overdue, fresh } = item;
+  const last = parseYmd(ch.lastDone);
+  const when = fresh ? 'zatím nikdy' : overdue ? `po termínu od ${fmtDay(date)}` : `od ${fmtDay(date)}`;
+  const meta = [FREQ[ch.freq] || ch.freq, when, last ? `naposledy ${fmtDay(last)}` : ''].filter(Boolean).join(', ');
+  return `<li class="tag ${ch.lastOwner ? 'o-' + esc(ch.lastOwner) : ''} ${overdue ? 'overdue' : ''}" draggable="true" data-chore="${esc(ch.id)}" tabindex="0">
+    <span class="t-body"><span class="t-name">${esc(ch.name)}</span><span class="t-meta">${esc(meta)}</span></span>
+    <span class="t-actions">
+      <button type="button" data-act="done" title="Už je hotovo" aria-label="Už je hotovo">✓</button>
+      <button type="button" data-act="skip" title="Tentokrát vynechat" aria-label="Tentokrát vynechat">↷</button>
+    </span></li>`;
+}
+
+function renderSide() {
+  const { due, later } = dueBuckets();
+  $('#due-count').textContent = due.length ? String(due.length) : '';
+  $('#due-list').innerHTML = due.length ? due.map(tagHtml).join('') : '<li class="empty">Na tento týden je všechno naplánované.</li>';
+  $('#later-list').innerHTML = later.length ? later.map(tagHtml).join('') : '<li class="empty">Nic dalšího.</li>';
+  $('#due-hint').hidden = !due.length;
+
+  const today = startOfDay(new Date()), tomorrow = addDays(today, 1), after = addDays(today, 2);
+  const items = S.assignments
+    .filter(a => (a.status === 'planned' || a.status === 'done') && new Date(a.start) >= today && new Date(a.start) < after)
+    .sort((a, b) => new Date(a.start) - new Date(b.start));
+  const group = (label, from, to) => {
+    const list = items.filter(a => new Date(a.start) >= from && new Date(a.start) < to);
+    if (!list.length) return '';
+    return `<h3>${label}</h3><ul class="today-list">${list.map(a => {
+      const ch = choreById(a.choreId);
+      return `<li class="${a.status === 'done' ? 'done' : ''}"><span class="tl-time">${fmtTime(new Date(a.start))}</span>
+        <span class="owner-dot d-${esc(a.owner)}" title="${esc(OWNERS[a.owner] || '')}"></span>
+        <span class="tl-name">${esc(ch?.name || '')}</span>
+        ${a.status === 'planned' ? `<button class="btn" data-assign-done="${esc(a.id)}">Hotovo</button>` : ''}</li>`;
+    }).join('')}</ul>`;
+  };
+  const html = group('Dnes', today, tomorrow) + group('Zítra', tomorrow, after);
+  $('#today-panel').innerHTML = html;
+  $('#today-panel').hidden = !html;
+}
+
+function legendHtml() {
+  return `<div class="legend">
+    <span><span class="owner-dot d-martin"></span>Martin</span>
+    <span><span class="owner-dot d-betka"></span>Bětka</span>
+    <span><span class="owner-dot d-both"></span>Společně</span>
+    <span><span class="free-key"></span>volno při přetahování</span></div>`;
+}
+
+function layoutSegs(segs) {
+  segs.sort((a, b) => a.s - b.s || b.e - a.e);
+  let lanes = [], cluster = [], clusterEnd = 0;
+  const flush = () => { const n = Math.max(1, ...cluster.map(x => x.col + 1)); cluster.forEach(x => (x.n = n)); cluster = []; lanes = []; };
+  for (const sg of segs) {
+    if (cluster.length && sg.s >= clusterEnd) flush();
+    let i = lanes.findIndex(end => end <= sg.s);
+    if (i < 0) { i = lanes.length; lanes.push(0); }
+    lanes[i] = sg.e; sg.col = i;
+    cluster.push(sg); clusterEnd = Math.max(clusterEnd, sg.e);
+  }
+  if (cluster.length) flush();
+}
+
+function liveAssignment(ev) {
+  return ev.assignId ? S.assignments.find(a => a.id === ev.assignId && (a.status === 'planned' || a.status === 'done')) : null;
+}
+
+function dayEventsHtml(d) {
+  const ds = new Date(d); ds.setHours(DAY_START, 0, 0, 0);
+  const de = new Date(d); de.setHours(DAY_END, 0, 0, 0);
+  const segs = S.events.filter(e => !e.allDay && e.start < +de && e.end > +ds)
+    .map(e => ({ ev: e, s: Math.max(e.start, +ds), e: Math.min(e.end, +de) }));
+  layoutSegs(segs);
+  return segs.map(sg => {
+    const top = (sg.s - ds) / 36e5 * HOUR_PX, h = Math.max(18, (sg.e - sg.s) / 36e5 * HOUR_PX - 2);
+    const w = 100 / sg.n, left = sg.col * w;
+    const pos = `top:${top}px;height:${h}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px)`;
+    const a = liveAssignment(sg.ev);
+    if (a) {
+      const ch = choreById(a.choreId);
+      return `<div class="ev chore o-${esc(a.owner)} ${a.status === 'done' ? 'is-done' : ''}" draggable="${a.status === 'planned'}" data-assign="${esc(a.id)}" style="${pos}" tabindex="0">
+        <b>${esc(ch?.name || sg.ev.title)}</b><span>${fmtTime(new Date(sg.ev.start))}, ${a.duration} min, ${esc(OWNERS[a.owner] || '')}</span></div>`;
+    }
+    return `<div class="ev busy c-${calKey(sg.ev.calId) || 'x'}" style="${pos}" title="${esc(sg.ev.title)}, ${fmtTime(new Date(sg.ev.start))}–${fmtTime(new Date(sg.ev.end))}">${esc(sg.ev.title)}</div>`;
+  }).join('');
+}
+
+function renderCal() {
+  const cal = $('#cal');
+  const prevScroll = cal.querySelector('.wk-scroll')?.scrollTop;
+  if (S.view === 'month') { cal.innerHTML = legendHtml() + monthHtml(); return; }
+  const { start } = viewRange();
+  const days = [...Array(7)].map((_, i) => addDays(start, i));
+  const today = startOfDay(new Date()), now = new Date();
+  const hours = [...Array(DAY_END - DAY_START)].map((_, i) => `<div>${i ? DAY_START + i + ':00' : ''}</div>`).join('');
+  const colH = (DAY_END - DAY_START) * HOUR_PX;
+  cal.innerHTML = legendHtml() + `<div class="wk">
+    <div class="wk-head"><div></div>${days.map(d => `<div class="dh ${sameDay(d, today) ? 'is-today' : ''}"><span>${WD[(d.getDay() + 6) % 7]}</span><b>${d.getDate()}.</b></div>`).join('')}</div>
+    <div class="wk-allday"><div><small>celý den</small></div>${days.map(d => `<div class="ad">${S.events.filter(e => e.allDay && e.start < +addDays(d, 1) && e.end > +d)
+      .map(e => `<div class="ev-ad" title="${esc(e.title)}">${esc(e.title)}</div>`).join('')}</div>`).join('')}</div>
+    <div class="wk-scroll"><div class="wk-body"><div class="times">${hours}</div>
+      ${days.map(d => {
+        const ds = new Date(d); ds.setHours(DAY_START, 0, 0, 0);
+        let pastH = 0;
+        if (d < today) pastH = colH;
+        else if (sameDay(d, today)) pastH = Math.min(colH, Math.max(0, (now - ds) / 36e5 * HOUR_PX));
+        const nowLine = sameDay(d, today) && pastH > 0 && pastH < colH ? `<div class="now-line" style="top:${pastH}px"></div>` : '';
+        return `<div class="col ${sameDay(d, today) ? 'is-today' : ''}" data-date="${ymd(d)}" style="height:${colH}px">
+          ${pastH ? `<div class="past" style="height:${pastH}px"></div>` : ''}${nowLine}${dayEventsHtml(d)}</div>`;
+      }).join('')}
+    </div></div></div>`;
+  const sc = cal.querySelector('.wk-scroll');
+  sc.scrollTop = prevScroll ?? (16 - DAY_START) * HOUR_PX - 20;
+}
+
+function monthHtml() {
+  const { start, month } = viewRange();
+  const today = startOfDay(new Date());
+  let h = `<div class="mo"><div class="mo-head">${WD.map(w => `<div>${w}</div>`).join('')}</div><div class="mo-grid">`;
+  for (let i = 0; i < 42; i++) {
+    const d = addDays(start, i), de = addDays(d, 1);
+    const evs = S.events.filter(e => e.start < +de && e.end > +d).sort((a, b) => (b.allDay - a.allDay) || a.start - b.start);
+    const chips = evs.slice(0, 5).map(e => {
+      const a = liveAssignment(e);
+      if (a) {
+        const ch = choreById(a.choreId);
+        return `<div class="mchip chore o-${esc(a.owner)} ${a.status === 'done' ? 'is-done' : ''}" draggable="${a.status === 'planned'}" data-assign="${esc(a.id)}" tabindex="0">${fmtTime(new Date(e.start))} ${esc(ch?.name || e.title)}</div>`;
+      }
+      return `<div class="mchip busy" title="${esc(e.title)}">${e.allDay ? '' : fmtTime(new Date(e.start)) + ' '}${esc(e.title)}</div>`;
+    }).join('');
+    h += `<div class="mcell ${d.getMonth() !== month.getMonth() ? 'other' : ''} ${sameDay(d, today) ? 'is-today' : ''}" data-date="${ymd(d)}">
+      <button class="mnum" data-week="${ymd(d)}" title="Otevřít týden">${d.getDate()}</button>${chips}${evs.length > 5 ? `<div class="more">a ${evs.length - 5} další</div>` : ''}</div>`;
+  }
+  return h + '</div></div>';
+}
+
+/* ---------- Drag & drop ---------- */
+function ownerCals(owner) {
+  const keys = owner === 'martin' ? ['martin', 'both'] : owner === 'betka' ? ['betka', 'both'] : ['martin', 'betka', 'both'];
+  return keys.map(k => S.config['cal_' + k]);
+}
+function busyFor(owner, from, to, excludeAssign) {
+  const ids = ownerCals(owner);
+  return S.events.filter(e => !e.allDay && !e.transparent && ids.includes(e.calId) && e.end > from && e.start < to && !(excludeAssign && e.assignId === excludeAssign));
+}
+function showFree(owner, excludeAssign) {
+  document.querySelectorAll('.col').forEach(col => {
+    const d = parseYmd(col.dataset.date);
+    const ds = new Date(d); ds.setHours(DAY_START, 0, 0, 0);
+    const de = new Date(d); de.setHours(DAY_END, 0, 0, 0);
+    const busy = busyFor(owner, +ds, +de, excludeAssign).map(e => [Math.max(e.start, +ds), Math.min(e.end, +de)]).sort((a, b) => a[0] - b[0]);
+    let cur = Math.max(+ds, Date.now());
+    const gaps = [];
+    for (const [s, e] of busy) { if (s > cur) gaps.push([cur, s]); cur = Math.max(cur, e); }
+    if (+de > cur) gaps.push([cur, +de]);
+    gaps.filter(([s, e]) => e - s >= SNAP * 60000).forEach(([s, e]) => {
+      const div = document.createElement('div');
+      div.className = 'free';
+      div.style.top = ((s - ds) / 36e5 * HOUR_PX) + 'px';
+      div.style.height = ((e - s) / 36e5 * HOUR_PX) + 'px';
+      col.prepend(div);
+    });
+  });
+}
+function clearDragUi() {
+  document.querySelectorAll('.free,.ghost').forEach(el => el.remove());
+  document.querySelectorAll('.mcell.drop').forEach(el => el.classList.remove('drop'));
+  document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+}
+function minutesAt(col, clientY) {
+  const y = clientY - col.getBoundingClientRect().top;
+  const m = DAY_START * 60 + Math.round((y / HOUR_PX * 60) / SNAP) * SNAP;
+  return Math.max(DAY_START * 60, Math.min(DAY_END * 60 - SNAP, m));
+}
+
+document.addEventListener('dragstart', e => {
+  const tag = e.target.closest?.('[data-chore]');
+  const blk = e.target.closest?.('[data-assign][draggable=true]');
+  if (!tag && !blk) return;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', tag ? tag.dataset.chore : blk.dataset.assign);
+  let owner;
+  if (tag) { S.drag = { type: 'chore', id: tag.dataset.chore }; owner = choreById(tag.dataset.chore)?.lastOwner || 'both'; }
+  else { const a = S.assignments.find(x => x.id === blk.dataset.assign); S.drag = { type: 'assign', id: a.id }; owner = a.owner; }
+  const el = tag || blk;
+  setTimeout(() => { el.classList.add('dragging'); if (S.view === 'week') showFree(owner, S.drag?.type === 'assign' ? S.drag.id : null); }, 0);
+});
+document.addEventListener('dragend', () => { clearDragUi(); setTimeout(() => (S.drag = null), 0); });
+
+$('#cal').addEventListener('dragover', e => {
+  if (!S.drag) return;
+  const col = e.target.closest('.col'), cell = e.target.closest('.mcell');
+  if (!col && !cell) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if (col) {
+    const m = minutesAt(col, e.clientY);
+    let g = col.querySelector('.ghost');
+    if (!g) { document.querySelectorAll('.ghost').forEach(x => x.remove()); g = document.createElement('div'); g.className = 'ghost'; g.innerHTML = '<span></span>'; col.appendChild(g); }
+    g.style.top = ((m - DAY_START * 60) / 60 * HOUR_PX) + 'px';
+    g.firstChild.textContent = `${Math.floor(m / 60)}:${pad(m % 60)}`;
+  } else {
+    document.querySelectorAll('.mcell.drop').forEach(x => x !== cell && x.classList.remove('drop'));
+    cell.classList.add('drop');
+  }
+});
+$('#cal').addEventListener('drop', e => {
+  const d = S.drag;
+  const col = e.target.closest('.col'), cell = e.target.closest('.mcell');
+  if (!d || (!col && !cell)) return;
+  e.preventDefault();
+  clearDragUi();
+  S.drag = null;
+  let start;
+  if (col) {
+    const m = minutesAt(col, e.clientY);
+    start = parseYmd(col.dataset.date); start.setHours(0, m, 0, 0);
+  } else {
+    start = parseYmd(cell.dataset.date);
+    if (d.type === 'assign') { const old = new Date(S.assignments.find(a => a.id === d.id).start); start.setHours(old.getHours(), old.getMinutes(), 0, 0); }
+    else start.setHours(18, 0, 0, 0);
+  }
+  if (d.type === 'chore') openPlan({ choreId: d.id, start, timeKnown: !!col });
+  else moveAssignment(d.id, start);
+});
+
+/* ---------- Plan dialog ---------- */
+let dlgCtx = null;
+$('#pd-durs').innerHTML = DURS.map(m => `<label><input type="radio" name="dur" value="${m}"><span>${m < 60 ? m + ' min' : (m / 60).toString().replace('.', ',') + ' h'}</span></label>`).join('');
+
+function defaultStart() {
+  const t = new Date();
+  const d = t.getHours() < 17 ? startOfDay(t) : addDays(startOfDay(t), 1);
+  if (S.view === 'week' && d < S.anchor) { const a = new Date(S.anchor); a.setHours(18, 0, 0, 0); return a; }
+  d.setHours(18, 0, 0, 0); return d;
+}
+function openPlan({ choreId, start, assignId }) {
+  const a = assignId ? S.assignments.find(x => x.id === assignId) : null;
+  const ch = choreById(a ? a.choreId : choreId);
+  if (!ch) return;
+  dlgCtx = { ch, a };
+  const st = a ? new Date(a.start) : (start || defaultStart());
+  const owner = a ? a.owner : ch.lastOwner;
+  const dur = a ? a.duration : (Number(ch.lastDuration) || 30);
+  $('#pd-title').textContent = ch.name;
+  const last = parseYmd(ch.lastDone);
+  $('#pd-sub').textContent = [FREQ[ch.freq], last ? `naposledy ${fmtDay(last)}` : 'zatím nikdy hotovo'].filter(Boolean).join(', ');
+  document.querySelectorAll('#pd-owners input').forEach(i => (i.checked = i.value === owner));
+  $('#pd-date').value = ymd(st);
+  $('#pd-time').value = `${pad(st.getHours())}:${pad(st.getMinutes())}`;
+  setDur(dur);
+  $('#pd-remove').hidden = !a || a.status !== 'planned';
+  $('#pd-done').hidden = !a || a.status !== 'planned';
+  $('#pd-save').hidden = !!a && a.status !== 'planned';
+  $('#pd-save').textContent = a ? 'Uložit změny' : 'Naplánovat';
+  $('#pd-save').disabled = false;
+  checkConflicts();
+  $('#plan-dlg').showModal();
+  (owner ? $('#pd-save') : $('#pd-owners input')).focus();
+}
+function setDur(m) {
+  $('#pd-dur').value = m;
+  document.querySelectorAll('#pd-durs input').forEach(i => (i.checked = Number(i.value) === Number(m)));
+}
+function readDlg() {
+  const owner = document.querySelector('#pd-owners input:checked')?.value;
+  const dur = Number($('#pd-dur').value);
+  const date = parseYmd($('#pd-date').value);
+  const [hh, mm] = ($('#pd-time').value || '').split(':').map(Number);
+  if (!date || isNaN(hh)) return { owner, dur };
+  const start = new Date(date); start.setHours(hh, mm || 0, 0, 0);
+  return { owner, dur, start };
+}
+function checkConflicts() {
+  const { owner, dur, start } = readDlg();
+  const w = $('#pd-warn');
+  if (!owner || !start || !dur) { w.textContent = ''; return; }
+  const clash = busyFor(owner, +start, +start + dur * 60000, dlgCtx?.a?.id);
+  w.textContent = clash.length ? `V tu dobu je v kalendáři: ${clash.slice(0, 3).map(e => e.title).join(', ')}` : '';
+}
+$('#pd-durs').addEventListener('change', e => { $('#pd-dur').value = e.target.value; checkConflicts(); });
+$('#pd-dur').addEventListener('input', () => { setDur($('#pd-dur').value); checkConflicts(); });
+['#pd-date', '#pd-time'].forEach(s => $(s).addEventListener('change', checkConflicts));
+$('#pd-owners').addEventListener('change', checkConflicts);
+$('#pd-cancel').onclick = () => $('#plan-dlg').close();
+$('#plan-dlg').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); $('#pd-save').click(); } });
+
+$('#pd-save').onclick = async () => {
+  const { owner, dur, start } = readDlg();
+  if (!owner) { toast('Vyber, kdo práci udělá.', 'err'); return; }
+  if (!start) { toast('Vyplň den a čas.', 'err'); return; }
+  if (!(dur >= 5)) { toast('Zadej délku aspoň 5 minut.', 'err'); return; }
+  const { ch, a } = dlgCtx;
+  $('#pd-save').disabled = true;
+  try {
+    if (a) await updateAssignment(a, owner, start, dur);
+    else await createAssignment(ch, owner, start, dur);
+    $('#plan-dlg').close();
+  } catch (e) { handleErr(e, 'Zápis do kalendáře selhal'); }
+  $('#pd-save').disabled = false;
+};
+$('#pd-remove').onclick = async () => {
+  const { a } = dlgCtx;
+  try { await removeAssignment(a); $('#plan-dlg').close(); } catch (e) { handleErr(e, 'Odebrání z kalendáře selhalo'); }
+};
+$('#pd-done').onclick = () => {
+  const { a } = dlgCtx;
+  completeAssignment(a, new Date());
+  $('#plan-dlg').close(); render(); save();
+  toast('Označeno jako hotové.');
+};
+
+/* ---------- Actions ---------- */
+async function createAssignment(ch, owner, start, dur) {
+  const calId = S.config['cal_' + owner];
+  if (!calId) throw new Error('Chybí přiřazení kalendáře v nastavení');
+  const a = { id: uid(), choreId: ch.id, owner, start: start.toISOString(), duration: dur, calendarId: calId, eventId: '', status: 'planned', sessionId: '', created: new Date().toISOString() };
+  syncState('Zapisuji…');
+  const ev = await api(`${CAL}/calendars/${enc(calId)}/events`, { method: 'POST', body: JSON.stringify(eventBody(ch, a)) });
+  a.eventId = ev.id;
+  S.assignments.push(a);
+  ch.lastOwner = owner; ch.lastDuration = dur;
+  upsertLocalEvent(ev, calId);
+  render(); save();
+  toast(`Naplánováno: ${ch.name}, ${fmtDayLong(start)} v ${fmtTime(start)}`);
+}
+async function updateAssignment(a, owner, start, dur) {
+  const ch = choreById(a.choreId);
+  syncState('Zapisuji…');
+  const newCal = S.config['cal_' + owner];
+  if (newCal && newCal !== a.calendarId) {
+    await api(`${CAL}/calendars/${enc(a.calendarId)}/events/${enc(a.eventId)}/move?destination=${enc(newCal)}`, { method: 'POST' });
+    a.calendarId = newCal;
+  }
+  Object.assign(a, { owner, start: start.toISOString(), duration: dur });
+  const b = eventBody(ch, a);
+  const ev = await api(`${CAL}/calendars/${enc(a.calendarId)}/events/${enc(a.eventId)}`, { method: 'PATCH', body: JSON.stringify({ start: b.start, end: b.end }) });
+  ch.lastOwner = owner; ch.lastDuration = dur;
+  upsertLocalEvent(ev, a.calendarId);
+  render(); save();
+  toast('Změny uloženy.');
+}
+async function moveAssignment(id, start) {
+  const a = S.assignments.find(x => x.id === id);
+  if (!a || +new Date(a.start) === +start) return;
+  try { await updateAssignment(a, a.owner, start, a.duration); }
+  catch (e) { handleErr(e, 'Přesun se nepovedl'); }
+}
+async function removeAssignment(a) {
+  syncState('Zapisuji…');
+  try { await api(`${CAL}/calendars/${enc(a.calendarId)}/events/${enc(a.eventId)}`, { method: 'DELETE' }); }
+  catch (e) { if (e.status !== 404 && e.status !== 410) throw e; }
+  a.status = 'removed';
+  S.events = S.events.filter(e => e.id !== a.eventId);
+  render(); save();
+  toast('Odebráno z kalendáře. Práce je zpět v seznamu.');
+}
+function markDoneNow(ch) {
+  const prev = ch.lastDone;
+  const entry = { date: ymd(new Date()), choreId: ch.id, choreName: ch.name, owner: ch.lastOwner || '', assignmentId: '' };
+  ch.lastDone = entry.date; S.log.push(entry);
+  render(); save();
+  toast(`Hotovo: ${ch.name}`, '', { label: 'Vrátit', fn: () => { ch.lastDone = prev; S.log = S.log.filter(x => x !== entry); render(); save(); } });
+}
+function skipChore(ch) {
+  const prev = ch.skipFrom;
+  ch.skipFrom = ymd(new Date());
+  render(); save();
+  toast(`Vynecháno do dalšího cyklu: ${ch.name}`, '', { label: 'Vrátit', fn: () => { ch.skipFrom = prev; render(); save(); } });
+}
+
+/* Clicks */
+document.addEventListener('click', e => {
+  const act = e.target.closest('[data-act]');
+  if (act) {
+    const ch = choreById(act.closest('[data-chore]').dataset.chore);
+    if (act.dataset.act === 'done') markDoneNow(ch); else skipChore(ch);
+    return;
+  }
+  const done = e.target.closest('[data-assign-done]');
+  if (done) {
+    const a = S.assignments.find(x => x.id === done.dataset.assignDone);
+    completeAssignment(a, new Date()); render(); save(); toast('Označeno jako hotové.');
+    return;
+  }
+  const wk = e.target.closest('[data-week]');
+  if (wk) { S.view = 'week'; S.anchor = mondayOf(parseYmd(wk.dataset.week)); refreshView(); return; }
+  const tag = e.target.closest('[data-chore]');
+  if (tag) { openPlan({ choreId: tag.dataset.chore }); return; }
+  const blk = e.target.closest('[data-assign]');
+  if (blk) openPlan({ assignId: blk.dataset.assign });
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.target.closest('dialog')) return;
+  const tag = e.target.closest?.('[data-chore]'), blk = e.target.closest?.('[data-assign]');
+  if (tag && e.target === tag) openPlan({ choreId: tag.dataset.chore });
+  else if (blk && e.target === blk) openPlan({ assignId: blk.dataset.assign });
+});
+
+/* ---------- Navigation ---------- */
+async function refreshView() {
+  render();
+  try { syncState('Načítám…'); await loadView(); render(); syncState('Aktuální'); }
+  catch (e) { handleErr(e, 'Načtení kalendáře selhalo'); }
+}
+async function refreshAll() {
+  try {
+    syncState('Načítám…');
+    await loadSheet();
+    await syncFromCalendar();
+    await loadView();
+    render(); syncState('Aktuální');
+  } catch (e) { handleErr(e, 'Synchronizace selhala'); }
+}
+$('#prev').onclick = () => { S.anchor = S.view === 'month' ? new Date(S.anchor.getFullYear(), S.anchor.getMonth() - 1, 1) : addDays(S.anchor, -7); refreshView(); };
+$('#next').onclick = () => { S.anchor = S.view === 'month' ? new Date(S.anchor.getFullYear(), S.anchor.getMonth() + 1, 1) : addDays(S.anchor, 7); refreshView(); };
+$('#go-today').onclick = () => { S.anchor = S.view === 'month' ? new Date() : mondayOf(new Date()); refreshView(); };
+$('#view-toggle').onclick = e => {
+  const v = e.target.closest('button')?.dataset.view;
+  if (!v || v === S.view) return;
+  S.view = v;
+  S.anchor = v === 'month' ? new Date(S.anchor.getFullYear(), S.anchor.getMonth(), Math.min(S.anchor.getDate() + 3, 28)) : mondayOf(viewRange().month || S.anchor);
+  if (v === 'week' && S.anchor.getMonth() === new Date().getMonth()) S.anchor = defaultAnchor();
+  refreshView();
+};
+$('#refresh').onclick = refreshAll;
+
+/* ---------- Settings ---------- */
+function calSelectsHtml(prefix) {
+  const guess = { martin: /martin/i, betka: /b[eě]t|alž|alz|beta/i, both: /oba|spol|both|my\b|společ/i };
+  return ['martin', 'betka', 'both'].map(k => {
+    const cur = S.config['cal_' + k] || (S.calendars.find(c => guess[k].test(c.summaryOverride || c.summary)) || {}).id || '';
+    return `<label><span class="owner-dot d-${k}"></span>${k === 'both' ? 'Společný kalendář (oba)' : 'Kalendář – ' + OWNERS[k]}
+      <select id="${prefix}-${k}"><option value="">Vyber kalendář…</option>${S.calendars.map(c =>
+        `<option value="${esc(c.id)}" ${c.id === cur ? 'selected' : ''}>${esc(c.summaryOverride || c.summary)}</option>`).join('')}</select></label>`;
+  }).join('');
+}
+function readCalSelects(prefix) {
+  const v = {};
+  for (const k of ['martin', 'betka', 'both']) { v[k] = $(`#${prefix}-${k}`).value; if (!v[k]) return null; }
+  return v;
+}
+$('#settings-btn').onclick = async () => {
+  try { if (!S.calendars.length) await loadCalendarList(); } catch (e) { handleErr(e, 'Načtení kalendářů selhalo'); return; }
+  $('#set-cals').innerHTML = calSelectsHtml('set');
+  $('#set-sheet').href = `https://docs.google.com/spreadsheets/d/${S.sheetId}/edit`;
+  $('#settings-dlg').showModal();
+};
+$('#set-close').onclick = () => $('#settings-dlg').close();
+$('#set-signout').onclick = signOut;
+$('#set-save').onclick = async () => {
+  const v = readCalSelects('set');
+  if (!v) { toast('Vyber kalendář pro všechny tři role.', 'err'); return; }
+  for (const k in v) S.config['cal_' + k] = v[k];
+  $('#settings-dlg').close();
+  await save(); refreshAll();
+};
+
+/* ---------- Setup screens ---------- */
+function showOnly(id) { ['#screen-signin', '#screen-setup', '#app'].forEach(s => ($(s).hidden = s !== id)); }
+function showSignin() { showOnly('#screen-signin'); }
+
+function showSheetSetup(errMsg) {
+  showOnly('#screen-setup');
+  $('#setup-card').innerHTML = `<h1>Kde budou data</h1>
+    <p>Aplikace si seznam prací a historii ukládá do tabulky na tvém Google Disku. Můžeš ji kdykoli otevřít a ručně opravit.</p>
+    ${errMsg ? `<p class="warn">${esc(errMsg)}</p>` : ''}
+    <button class="btn primary" id="setup-create">Vytvořit tabulku s vašimi 34 pracemi</button>
+    <p class="fine">Tabulku už máš z jiného zařízení? Vlož odkaz na ni.</p>
+    <div class="row-inline"><input type="text" id="setup-link" placeholder="https://docs.google.com/spreadsheets/d/…" aria-label="Odkaz na tabulku"><button class="btn" id="setup-use">Použít</button></div>`;
+  $('#setup-create').onclick = async () => {
+    $('#setup-create').disabled = true; $('#setup-create').textContent = 'Vytvářím…';
+    try {
+      S.sheetId = await createSheet();
+      S.chores = seedChores(); S.assignments = []; S.log = []; S.config = {};
+      await doSave();
+      store('set', 'hp_sheet', S.sheetId);
+      boot();
+    } catch (e) { handleErr(e, 'Vytvoření tabulky selhalo'); $('#setup-create').disabled = false; $('#setup-create').textContent = 'Vytvořit tabulku s vašimi 34 pracemi'; }
+  };
+  $('#setup-use').onclick = () => {
+    const m = $('#setup-link').value.match(/\/d\/([a-zA-Z0-9_-]{20,})/) || $('#setup-link').value.trim().match(/^([a-zA-Z0-9_-]{20,})$/);
+    if (!m) { toast('Tohle nevypadá jako odkaz na Google tabulku.', 'err'); return; }
+    S.sheetId = m[1]; store('set', 'hp_sheet', S.sheetId); boot();
+  };
+}
+
+async function showCalSetup() {
+  await loadCalendarList();
+  showOnly('#screen-setup');
+  $('#setup-card').innerHTML = `<h1>Čí je který kalendář</h1>
+    <p>Práce se zapíše do kalendáře toho, kdo ji dělá. Společné práce jdou do společného kalendáře.</p>
+    ${calSelectsHtml('cs')}
+    <button class="btn primary" id="cs-save">Pokračovat</button>`;
+  $('#cs-save').onclick = async () => {
+    const v = readCalSelects('cs');
+    if (!v) { toast('Vyber kalendář pro všechny tři role.', 'err'); return; }
+    for (const k in v) S.config['cal_' + k] = v[k];
+    $('#cs-save').disabled = true;
+    try { await doSave(); boot(); } catch (e) { handleErr(e, 'Uložení selhalo'); $('#cs-save').disabled = false; }
+  };
+}
+
+/* ---------- Boot ---------- */
+async function boot() {
+  if (!S.sheetId) { showSheetSetup(); return; }
+  showOnly('#app');
+  $('#cal').innerHTML = '<div class="loading">Načítám kalendáře…</div>';
+  try {
+    await loadSheet();
+  } catch (e) {
+    if (e instanceof AuthError) { showSignin(); return; }
+    if (e.status === 404 || e.status === 403) { store('del', 'hp_sheet'); S.sheetId = null; showSheetSetup('Uloženou tabulku se nepodařilo otevřít. Vytvoř novou, nebo vlož odkaz na existující.'); return; }
+    handleErr(e, 'Načtení dat selhalo'); return;
+  }
+  if (!S.config.cal_martin || !S.config.cal_betka || !S.config.cal_both) {
+    try { await showCalSetup(); } catch (e) { handleErr(e, 'Načtení kalendářů selhalo'); }
+    return;
+  }
+  S.booted = true;
+  S.anchor = S.anchor || defaultAnchor();
+  try {
+    syncState('Načítám…');
+    await syncFromCalendar();
+    await loadView();
+    render(); syncState('Aktuální');
+  } catch (e) { render(); handleErr(e, 'Načtení kalendáře selhalo'); }
+}
+
+$('#signin-btn').onclick = signIn;
+$('#reauth-btn').onclick = signIn;
+initAuth();
+if (restoreToken()) boot(); else showSignin();
+</script>
+</body>
+</html>
