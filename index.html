@@ -385,6 +385,32 @@ dialog::backdrop{background:rgba(0,0,0,.28);backdrop-filter:blur(3px)}
 .r-card .confirm{margin:16px 0 18px;background:var(--surface-2)}
 @media (prefers-color-scheme: dark){.r-card .confirm{background:var(--bg)}}
 
+/* v3.2: calendars in owner colours, emoji ticks, movable suggestion */
+.ev.busy.c-martin{background:color-mix(in srgb,var(--martin) 10%,var(--bg));border-left:3px solid color-mix(in srgb,var(--martin) 55%,transparent);color:color-mix(in srgb,var(--martin) 50%,var(--ink))}
+.ev.busy.c-betka{background:color-mix(in srgb,var(--betka) 10%,var(--bg));border-left:3px solid color-mix(in srgb,var(--betka) 55%,transparent);color:color-mix(in srgb,var(--betka) 50%,var(--ink))}
+.ev.busy.c-both{background:color-mix(in srgb,var(--both) 10%,var(--bg));border-left:3px solid color-mix(in srgb,var(--both) 55%,transparent);color:color-mix(in srgb,var(--both) 45%,var(--ink))}
+.ev.chore.o-martin{background:color-mix(in srgb,var(--martin) 24%,var(--bg))}
+.ev.chore.o-betka{background:color-mix(in srgb,var(--betka) 24%,var(--bg))}
+.ev.chore.o-both{background:color-mix(in srgb,var(--both) 26%,var(--bg))}
+.ev.chore b::before{content:"🧹 "}
+.tick,.xbtn{width:36px;height:36px;border:0;background:var(--surface-2);font-size:19px}
+.tick::after{content:"✅";filter:grayscale(1);opacity:.4;transition:filter .15s,opacity .15s}
+.tick:hover::after,.tick.full::after,.tick.ticked::after,.tick.is-on::after{filter:none;opacity:1}
+.tick:hover{color:inherit;background:color-mix(in srgb,var(--tick) 16%,var(--surface-2))}
+.tick.ticked,.tick.is-on{background:color-mix(in srgb,var(--tick) 18%,var(--surface-2))}
+.xbtn{flex:none;border-radius:50%;display:grid;place-items:center;cursor:pointer;padding:0;transition:transform .15s,background .15s}
+.xbtn::after{content:"❌";font-size:16px}
+.xbtn:hover{background:color-mix(in srgb,var(--overdue) 14%,var(--surface-2))}
+.xbtn:active{transform:scale(.88)}
+.confirm .tick,.confirm .xbtn{background:var(--bg)}
+.ev.preview{cursor:grab}
+.ev.preview:active{cursor:grabbing}
+.r-durs{margin:-6px 0 0}
+.r-durs span{padding:6px 10px;font-size:13.5px}
+.pick.r-durs input:checked+span{background:var(--ink);color:var(--bg)}
+.r-next{font-size:15px;margin:26px 0 8px}
+.r-queue .tag{cursor:grab}
+
 /* Confetti */
 .confetti{position:fixed;width:8px;height:12px;border-radius:2px;pointer-events:none;z-index:60;
   animation:burst var(--t,.9s) cubic-bezier(.15,.7,.3,1) forwards}
@@ -939,7 +965,7 @@ function renderSide() {
       return `<li class="${a.status === 'done' ? 'done' : ''}"><span class="tl-time">${fmtTime(new Date(a.start))}</span>
         <span class="owner-dot d-${esc(a.owner)}" title="${esc(OWNERS[a.owner] || '')}"></span>
         <span class="tl-name">${esc(ch?.name || '')}</span>
-        ${a.status === 'planned' ? `<button class="tick" data-assign-done="${esc(a.id)}" aria-label="Hotovo: ${esc(ch?.name || '')}" title="Hotovo"></button>` : '<span class="tick is-on" aria-label="Hotovo"></span>'}</li>`;
+        ${a.status === 'planned' ? `<button class="tick full" data-assign-done="${esc(a.id)}" aria-label="Hotovo: ${esc(ch?.name || '')}" title="Hotovo"></button>` : '<span class="tick is-on" aria-label="Hotovo"></span>'}</li>`;
     }).join('')}</ul>`;
   };
   const html = group('Dnes', today, tomorrow) + group('Zítra', tomorrow, after);
@@ -951,8 +977,8 @@ function confirmHtml(list) {
   return `<h3>Udělali jste to?</h3><p class="hint">Čas už proběhl a nikdo to neodškrtl.</p><ul class="confirm-list">${list.map(a => {
     const ch = choreById(a.choreId), st = new Date(a.start);
     return `<li><span class="owner-dot d-${esc(a.owner)}"></span><span class="c-body">${esc(ch?.name || '')}<small>${fmtDayLong(st)} v ${fmtTime(st)}, ${esc(OWNERS[a.owner] || '')}</small></span>
-      <button class="pill no" data-confirm-no="${esc(a.id)}" title="Nestihlo se, vrátit do seznamu">Ne</button>
-      <button class="tick" data-assign-done="${esc(a.id)}" aria-label="Ano, hotovo: ${esc(ch?.name || '')}" title="Ano, hotovo"></button></li>`;
+      <button class="tick full" data-assign-done="${esc(a.id)}" aria-label="Ano, hotovo: ${esc(ch?.name || '')}" title="Ano, hotovo"></button>
+      <button class="xbtn" data-confirm-no="${esc(a.id)}" aria-label="Ne, vrátit do seznamu: ${esc(ch?.name || '')}" title="Ne, nestihlo se"></button></li>`;
   }).join('')}</ul>`;
 }
 
@@ -1068,7 +1094,7 @@ function dayEventsHtml(d) {
 function previewHtml(d, ds) {
   if (!ritualCardOn() || !sameDay(R.sugg.start, d)) return '';
   const st = R.sugg.start, top = (st - ds) / 36e5 * HOUR_PX, h = Math.max(22, R.sugg.dur / 60 * HOUR_PX - 2);
-  return `<div class="ev chore preview o-${esc(R.sugg.owner)}" data-preview style="top:${top}px;height:${h}px;left:2px;right:2px" title="Klikni a naplánuj">
+  return `<div class="ev chore preview o-${esc(R.sugg.owner)}" data-preview draggable="true" style="top:${top}px;height:${h}px;left:2px;right:2px" title="Klikni a naplánuj">
     <b>${esc(R.queue[R.i].ch.name)}</b><span>${fmtTime(st)}, ${R.sugg.dur} min, ${esc(OWNERS[R.sugg.owner])}</span></div>`;
 }
 
@@ -1162,6 +1188,14 @@ function minutesAt(col, clientY) {
 }
 
 document.addEventListener('dragstart', e => {
+  const pv = e.target.closest?.('[data-preview]');
+  if (pv && ritualCardOn()) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', 'preview');
+    S.drag = { type: 'preview' };
+    setTimeout(() => { pv.classList.add('dragging'); showFree(R.sugg.owner); }, 0);
+    return;
+  }
   const tag = e.target.closest?.('[data-chore]');
   const blk = e.target.closest?.('[data-assign][draggable=true]');
   if (!tag && !blk) return;
@@ -1208,8 +1242,13 @@ $('#cal').addEventListener('drop', e => {
     if (d.type === 'assign') { const old = new Date(S.assignments.find(a => a.id === d.id).start); start.setHours(old.getHours(), old.getMinutes(), 0, 0); }
     else start.setHours(18, 0, 0, 0);
   }
-  if (d.type === 'chore' && ritualCardOn() && R.queue[R.i].ch.id === d.id)
-    openPlan({ choreId: d.id, start, owner: R.sugg.owner, dur: R.sugg.dur, onSaved: () => { R.tally.planned++; ritualNext(); } });
+  if (d.type === 'preview') {
+    if (!ritualCardOn() || !col) return;
+    R.sugg.start = start; R.sugg.manual = true;
+    R.sugg.why = busyFor(R.sugg.owner, +start, +start + R.sugg.dur * 60000).length ? 'pozor, v tu dobu je v kalendáři jiná událost' : 'posunuto ručně';
+    refreshCard();
+  }
+  else if (d.type === 'chore' && ritualCardOn() && R.queue.some(x => x.ch.id === d.id)) ritualDropPlan(d.id, start);
   else if (d.type === 'chore') openPlan({ choreId: d.id, start, timeKnown: !!col });
   else moveAssignment(d.id, start);
 });
@@ -1594,9 +1633,9 @@ function suggestOwner(ch, weekStart) {
   const load = o => S.assignments.filter(a => a.status === 'planned' && a.owner === o && new Date(a.start) >= weekStart && new Date(a.start) < wkEnd).length;
   return load('betka') < load('martin') ? 'betka' : 'martin';
 }
-function suggestSlot(ch, weekStart, owner) {
+function suggestSlot(ch, weekStart, owner, durOverride) {
   const hist = S.assignments.filter(a => a.choreId === ch.id && (a.status === 'done' || a.status === 'planned')).slice(-8);
-  const dur = Number(ch.lastDuration) || modeOf(hist.map(a => a.duration)) || 30;
+  const dur = durOverride || Number(ch.lastDuration) || modeOf(hist.map(a => a.duration)) || 30;
   const prefDay = hist.length ? modeOf(hist.map(a => (new Date(a.start).getDay() + 6) % 7)) : null;
   const mins = hist.map(a => { const d = new Date(a.start); return d.getHours() * 60 + d.getMinutes(); }).sort((a, b) => a - b);
   const prefMin = mins.length ? mins[Math.floor(mins.length / 2)] : null;
@@ -1682,19 +1721,54 @@ function cardHtml() {
     <div class="r-drag" draggable="true" data-chore="${esc(ch.id)}" title="Přetáhni do kalendáře">
       <h2>${esc(ch.name)}</h2>
       <p class="r-meta ${it.overdue ? 'overdue' : ''}">${esc(meta)}</p>
-      <small>Návrh vidíš v kalendáři. Můžeš ho přijmout, nebo práci přetáhnout jinam.</small>
+      <small>Návrh je v kalendáři čárkovaně. Posuň ho tažením, nebo přetáhni tuhle kartu kamkoli.</small>
     </div>
     <div class="pick owners" id="r-owners" role="radiogroup" aria-label="Kdo">
       ${Object.entries(OWNERS).map(([k, l]) => `<label><input type="radio" name="r-owner" value="${k}" ${k === sg.owner ? 'checked' : ''}><span class="p-${k}">${l}</span></label>`).join('')}
     </div>
-    <div class="r-sugg"><b>${fmtDayLong(sg.start)} v ${fmtTime(sg.start)}, ${sg.dur} min</b><small>${esc(sg.why)}</small></div>
+    <div class="pick r-durs" role="radiogroup" aria-label="Jak dlouho">
+      ${[...new Set([...DURS, sg.dur])].sort((a, b) => a - b).map(m => `<label><input type="radio" name="r-dur" value="${m}" ${m === sg.dur ? 'checked' : ''}><span>${durLabel(m)}</span></label>`).join('')}
+    </div>
+    <div class="r-sugg"><b>${fmtDayLong(sg.start)} v ${fmtTime(sg.start)}, ${durLabel(sg.dur)}</b><small>${esc(sg.why)}</small></div>
     <button class="btn primary r-main" data-r="plan" data-r-focus>Naplánovat</button>
     <div class="r-row">
-      <button class="pill" data-r="other">Jiný čas</button>
+      <button class="pill" data-r="other">Upravit…</button>
       <button class="pill" data-r="done">Už je hotovo</button>
       <button class="pill" data-r="skip">Vynechat tento cyklus</button>
       <button class="pill" data-r="later">Teď ne</button>
-    </div>`;
+    </div>
+    ${queueHtml()}`;
+}
+const durLabel = m => m < 60 ? m + ' min' : (m / 60).toString().replace('.', ',') + ' h';
+function queueHtml() {
+  const rest = R.queue.slice(R.i + 1);
+  if (!rest.length) return '';
+  return `<h3 class="r-next">Další na řadě <small>${rest.length}</small></h3>
+    <p class="hint">Kteroukoli přetáhni rovnou do kalendáře, nebo na ni klikni.</p>
+    <ul class="tags r-queue">${rest.map(x => `<li class="tag ${x.ch.lastOwner ? 'o-' + esc(x.ch.lastOwner) : ''} ${x.overdue ? 'overdue' : ''}" draggable="true" data-chore="${esc(x.ch.id)}" data-r-pick="${esc(x.ch.id)}" tabindex="0">
+      <span class="t-body"><span class="t-name">${esc(x.ch.name)}</span><span class="t-meta">${esc(FREQ[x.ch.freq] || '')}</span></span></li>`).join('')}</ul>`;
+}
+/* redraw the card in place (no slide), e.g. after changing who or how long */
+function refreshCard() {
+  if (!ritualCardOn()) return;
+  const sc = $('.side').scrollTop;
+  $('#r-card').innerHTML = cardHtml();
+  $('.side').scrollTop = sc;
+  renderCal();
+}
+/* plan straight from a drop in the calendar */
+async function ritualDropPlan(chId, start) {
+  const cur = R.queue[R.i]?.ch.id === chId;
+  const ch = choreById(chId);
+  const owner = cur ? R.sugg.owner : suggestOwner(ch, R.anchor);
+  const dur = cur ? R.sugg.dur : (Number(ch.lastDuration) || 30);
+  try {
+    const a = await createAssignment(ch, owner, start, dur, true);
+    R.tally.planned++;
+    toast(`Naplánováno: ${ch.name}, ${fmtDayLong(start)} v ${fmtTime(start)}`, '', { label: 'Vrátit', fn: () => removeAssignment(a).catch(e => handleErr(e, 'Vrácení se nepovedlo')) });
+    if (cur) ritualNext();
+    else { R.queue = R.queue.filter(x => x.ch.id !== chId); refreshCard(); }
+  } catch (e) { handleErr(e, 'Zápis do kalendáře selhal'); }
 }
 function endHtml() {
   const t = R.tally;
@@ -1718,6 +1792,12 @@ function scrollToPreview() {
 const ritualCardOn = () => R.open && R.step === 'cards' && R.sugg && R.i < R.queue.length;
 function ritualNext() { R.i++; showRitual(); }
 $('#ritual').addEventListener('click', async e => {
+  const pick = e.target.closest('[data-r-pick]');
+  if (pick && ritualCardOn()) {
+    const j = R.queue.findIndex(x => x.ch.id === pick.dataset.rPick);
+    if (j > R.i) { const [x] = R.queue.splice(j, 1); R.queue.splice(R.i, 0, x); showRitual(); }
+    return;
+  }
   const b = e.target.closest('[data-r]');
   if (!b) {
     // ticks/no inside the review's "Udělali jste to?"
@@ -1747,13 +1827,19 @@ $('#ritual').addEventListener('click', async e => {
   }
 });
 $('#ritual').addEventListener('change', e => {
-  if (e.target.name !== 'r-owner') return;
-  R.owner = e.target.value;
-  const keep = R.owner;
-  R.sugg = suggestSlot(R.queue[R.i].ch, R.anchor, keep);
-  R.owner = null;
-  $('#r-card').querySelector('.r-sugg').innerHTML = `<b>${fmtDayLong(R.sugg.start)} v ${fmtTime(R.sugg.start)}, ${R.sugg.dur} min</b><small>${esc(R.sugg.why)}</small>`;
-  renderCal(); scrollToPreview();
+  if (!ritualCardOn()) return;
+  if (e.target.name === 'r-owner') {
+    if (R.sugg.manual) {
+      R.sugg.owner = e.target.value;
+      R.sugg.why = busyFor(R.sugg.owner, +R.sugg.start, +R.sugg.start + R.sugg.dur * 60000).length ? 'pozor, v tu dobu je v kalendáři jiná událost' : 'posunuto ručně';
+    } else R.sugg = suggestSlot(R.queue[R.i].ch, R.anchor, e.target.value, R.sugg.dur);
+    refreshCard(); scrollToPreview();
+  } else if (e.target.name === 'r-dur') {
+    R.sugg.dur = Number(e.target.value);
+    const clash = busyFor(R.sugg.owner, +R.sugg.start, +R.sugg.start + R.sugg.dur * 60000).length;
+    R.sugg.why = clash ? 'pozor, teď to koliduje s jinou událostí' : R.sugg.why;
+    refreshCard();
+  }
 });
 document.addEventListener('keydown', e => {
   if (!R.open || $('#plan-dlg').open) return;
