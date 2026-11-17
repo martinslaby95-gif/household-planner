@@ -611,7 +611,7 @@ const CLIENT_ID = '181661616063-ccorepmv131hpoa7t99o27f80fr9gqk7.apps.googleuser
 /* Google Picker needs its own API key (not the OAuth client secret — web apps don't have
    one). In Google Cloud Console, for this same project: enable "Google Picker API" under
    APIs & services, then Credentials → Create credentials → API key, and paste it here. */
-const PICKER_API_KEY = '';
+const PICKER_API_KEY = 'AIzaSyDuZo0Q2l6BylyBcDbiuoXhUXlna6JeKgU';
 const SCOPES = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/drive.file'];
 const DAY_START = 6, DAY_END = 23, HOUR_PX = 48, SNAP = 15;
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
